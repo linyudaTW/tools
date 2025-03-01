@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片合併工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .preview {
+            margin-top: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            max-width: 100%;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .image-grid {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .image-container {
+            margin: 5px;
+            text-align: center;
+        }
+        .image-container img {
+            max-width: 150px;
+            max-height: 150px;
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>圖片合併工具</h1>
+    
+    <div class="controls">
+        <p>請選擇您的10張圖片 (01.jpg 到 10.jpg)：</p>
+        <input type="file" id="imageFiles" multiple accept="image/*">
+        <p><small>提示：您可以一次選擇所有10個檔案</small></p>
+        <button id="mergeButton" disabled>合併圖片</button>
+    </div>
+    
+    <div class="image-grid" id="imageGrid"></div>
+    
+    <div class="preview">
+        <h2>合併結果</h2>
+        <canvas id="resultCanvas"></canvas>
+        <div id="downloadContainer" style="margin-top: 10px; display: none;">
+            <button id="downloadButton">下載合併圖片</button>
+        </div>
+    </div>
+    
+    <script>
+        const imageGrid = document.getElementById('imageGrid');
+        const resultCanvas = document.getElementById('resultCanvas');
+        const mergeButton = document.getElementById('mergeButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const downloadContainer = document.getElementById('downloadContainer');
+        const fileInput = document.getElementById('imageFiles');
+        
+        const ctx = resultCanvas.getContext('2d');
+        const images = new Array(10).fill(null);
+        const expectedFileNames = Array.from({length: 10}, (_, i) => `0${i+1}.jpg`.slice(-6));
+        
+        fileInput.addEventListener('change', handleFileSelect);
+        mergeButton.addEventListener('click', mergeImages);
+        downloadButton.addEventListener('click', downloadImage);
+        
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            
+            if (files.length > 10) {
+                alert('請選擇最多10個檔案');
+                return;
+            }
+            
+            // 清空現有預覽
+            imageGrid.innerHTML = '';
+            images.fill(null);
+            
+            // 處理每個選擇的檔案
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.type.match('image.*')) {
+                    continue;
+                }
+                
+                // 確定檔案位置 (01.jpg, 02.jpg, 等)
+                let index = -1;
+                const fileName = file.name;
+                
+                // 嘗試從檔名判斷正確位置
+                expectedFileNames.forEach((expected, idx) => {
+                    if (fileName.includes(expected) || 
+                        fileName.includes(`${idx+1}.jpg`) || 
+                        fileName.includes(`0${idx+1}.jpg`)) {
+                        index = idx;
+                    }
+                });
+                
+                // 如果無法確定位置，按順序放置
+                if (index === -1) {
+                    for (let j = 0; j < 10; j++) {
+                        if (images[j] === null) {
+                            index = j;
+                            break;
+                        }
+                    }
+                }
+                
+                if (index !== -1) {
+                    // 載入圖片並顯示預覽
+                    const reader = new FileReader();
+                    reader.onload = (function(idx) {
+                        return function(e) {
+                            const img = new Image();
+                            img.onload = function() {
+                                images[idx] = this;
+                                updateUI();
+                            };
+                            img.src = e.target.result;
+                            
+                            // 建立圖片預覽
+                            const container = document.createElement('div');
+                            container.className = 'image-container';
+                            
+                            const imgEl = document.createElement('img');
+                            imgEl.src = e.target.result;
+                            
+                            const label = document.createElement('div');
+                            label.textContent = `圖片 ${idx + 1}`;
+                            
+                            container.appendChild(imgEl);
+                            container.appendChild(label);
+                            imageGrid.appendChild(container);
+                        };
+                    })(index);
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+        
+        function updateUI() {
+            // 檢查是否所有圖片都已載入
+            const allLoaded = images.every(img => img !== null);
+            mergeButton.disabled = !allLoaded;
+            
+            if (allLoaded) {
+                mergeButton.textContent = '合併這10張圖片';
+            } else {
+                const loadedCount = images.filter(img => img !== null).length;
+                mergeButton.textContent = `已載入 ${loadedCount}/10 張圖片`;
+            }
+        }
+        
+        function mergeImages() {
+            // 確保所有圖片都已載入
+            if (!images.every(img => img !== null)) {
+                alert('請先載入所有10張圖片');
+                return;
+            }
+            
+            // 確定單一圖片尺寸和最終畫布尺寸
+            const firstImage = images[0];
+            const imgWidth = firstImage.width;
+            const imgHeight = firstImage.height;
+            
+            // 設定畫布尺寸
+            resultCanvas.width = imgWidth * 5; // 5張圖寬度
+            resultCanvas.height = imgHeight * 2; // 2列高度
+            
+            // 清除畫布
+            ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+            
+            // 繪製前五張圖片 (上方一列)
+            for (let i = 0; i < 5; i++) {
+                ctx.drawImage(images[i], i * imgWidth, 0, imgWidth, imgHeight);
+            }
+            
+            // 繪製後五張圖片 (下方一列)
+            for (let i = 0; i < 5; i++) {
+                ctx.drawImage(images[i + 5], i * imgWidth, imgHeight, imgWidth, imgHeight);
+            }
+            
+            // 顯示下載按鈕
+            downloadContainer.style.display = 'block';
+        }
+        
+        function downloadImage() {
+            const dataURL = resultCanvas.toDataURL('image/jpeg', 0.9);
+            const link = document.createElement('a');
+            link.download = '合併圖片.jpg';
+            link.href = dataURL;
+            link.click();
+        }
+    </script>
+	<br>本工具由 <a href="https://claude.ai/">claude.ai</a> 指導產生，使用提示詞如下:<br>
+	<pre>
+	想請您幫我寫一支 HTML 網頁，可以在本機執行以下功能:
+	1.我提供 01.jpg、02.jpg...到 10.jpg 十個固定大小的圖檔。
+	2.請幫我合併此十個檔案成為一大張圖片，上面是 1~5圖，下面是6~10 圖。
+	</pre>
+	回 <a href="index.html">阿德自用工具</a>
+</body>
+</html>
