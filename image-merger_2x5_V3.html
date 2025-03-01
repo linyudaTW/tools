@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片縮放合併工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .controls {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .preview {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+            max-width: 100%;
+            background-color: #fff;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .image-container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .image-container img {
+            width: 100%;
+            height: 150px;
+            object-fit: contain;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .image-label {
+            text-align: center;
+            font-weight: bold;
+        }
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .instructions {
+            background-color: #e8f0fe;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .placeholder {
+            height: 150px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        .placeholder:hover {
+            border-color: #4285f4;
+            background-color: #f0f7ff;
+        }
+        .scale-options {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .scale-options label {
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        .scale-options select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>圖片縮放合併工具</h1>
+    
+    <div class="instructions">
+        <h3>使用說明：</h3>
+        <ol>
+            <li>點擊下方的"添加圖片"按鈕或拖放圖片到各個方塊中</li>
+            <li>選擇10張圖片（會自動排列成上面5張，下面5張）</li>
+            <li>選擇縮放比例（0.1到0.9之間）</li>
+            <li>點擊"合併圖片"按鈕生成合併後的圖片</li>
+            <li>點擊"下載"按鈕保存合併後的圖片</li>
+        </ol>
+    </div>
+    
+    <div class="controls">
+        <input type="file" id="fileInput" style="display:none" multiple accept="image/*">
+        <button id="addImagesBtn">添加圖片</button>
+        <div class="scale-options">
+            <label for="scaleSelect">縮放比例：</label>
+            <select id="scaleSelect">
+                <option value="0.1">0.1 (10%)</option>
+                <option value="0.2">0.2 (20%)</option>
+                <option value="0.25">0.25 (25%)</option>
+                <option value="0.3" selected>0.3 (30%)</option>
+                <option value="0.4">0.4 (40%)</option>
+                <option value="0.5">0.5 (50%)</option>
+                <option value="0.6">0.6 (60%)</option>
+                <option value="0.7">0.7 (70%)</option>
+                <option value="0.75">0.75 (75%)</option>
+                <option value="0.8">0.8 (80%)</option>
+                <option value="0.9">0.9 (90%)</option>
+            </select>
+        </div>
+        <button id="mergeButton" disabled>合併圖片</button>
+        <p id="status">請選擇10張圖片</p>
+    </div>
+    
+    <div class="image-grid" id="imageGrid"></div>
+    
+    <div class="preview">
+        <h2>合併結果預覽</h2>
+        <canvas id="resultCanvas"></canvas>
+        <div id="downloadContainer" style="margin-top: 15px; display: none;">
+            <button id="downloadButton">下載合併圖片</button>
+        </div>
+    </div>
+    
+    <script>
+        const imageGrid = document.getElementById('imageGrid');
+        const resultCanvas = document.getElementById('resultCanvas');
+        const ctx = resultCanvas.getContext('2d');
+        const mergeButton = document.getElementById('mergeButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const downloadContainer = document.getElementById('downloadContainer');
+        const fileInput = document.getElementById('fileInput');
+        const addImagesBtn = document.getElementById('addImagesBtn');
+        const statusElement = document.getElementById('status');
+        const scaleSelect = document.getElementById('scaleSelect');
+        
+        // 存儲圖片的陣列，最多10張
+        const images = [];
+        const MAX_IMAGES = 10;
+        
+        // 監聽事件
+        fileInput.addEventListener('change', handleFileSelect);
+        addImagesBtn.addEventListener('click', () => fileInput.click());
+        mergeButton.addEventListener('click', mergeImages);
+        downloadButton.addEventListener('click', downloadImage);
+        
+        // 初始化圖片格子
+        initializeImageGrid();
+        
+        function initializeImageGrid() {
+            imageGrid.innerHTML = '';
+            
+            for (let i = 0; i < MAX_IMAGES; i++) {
+                const container = document.createElement('div');
+                container.className = 'image-container';
+                
+                const placeholder = document.createElement('div');
+                placeholder.className = 'placeholder';
+                placeholder.textContent = `圖片 ${i + 1}`;
+                placeholder.dataset.index = i;
+                placeholder.addEventListener('click', () => {
+                    fileInput.dataset.targetIndex = i;
+                    fileInput.click();
+                });
+                
+                // 支援拖放
+                placeholder.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    placeholder.style.backgroundColor = '#e0f0ff';
+                });
+                
+                placeholder.addEventListener('dragleave', () => {
+                    placeholder.style.backgroundColor = '#f9f9f9';
+                });
+                
+                placeholder.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    fileInput.dataset.targetIndex = i;
+                    if (e.dataTransfer.files.length > 0) {
+                        handleSingleFile(e.dataTransfer.files[0], i);
+                    }
+                    placeholder.style.backgroundColor = '#f9f9f9';
+                });
+                
+                container.appendChild(placeholder);
+                imageGrid.appendChild(container);
+            }
+        }
+        
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            const targetIndex = parseInt(fileInput.dataset.targetIndex);
+            
+            if (!isNaN(targetIndex)) {
+                // 單一位置上傳
+                if (files.length > 0) {
+                    handleSingleFile(files[0], targetIndex);
+                }
+            } else {
+                // 批量上傳
+                const startIndex = images.filter(img => img !== null).length;
+                const availableSlots = MAX_IMAGES - startIndex;
+                
+                if (availableSlots <= 0) {
+                    alert('已經選擇了10張圖片，請先移除部分圖片');
+                    return;
+                }
+                
+                const filesToAdd = files.slice(0, availableSlots);
+                
+                filesToAdd.forEach((file, index) => {
+                    if (file.type.match('image.*')) {
+                        handleSingleFile(file, startIndex + index);
+                    }
+                });
+                
+                if (files.length > availableSlots) {
+                    alert(`只能添加${availableSlots}張圖片。已選擇前${availableSlots}張。`);
+                }
+            }
+            
+            // 重置file input
+            event.target.value = '';
+            delete fileInput.dataset.targetIndex;
+        }
+        
+        function handleSingleFile(file, index) {
+            if (!file.type.match('image.*')) {
+                alert('請選擇圖片檔案');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                
+                img.onload = function() {
+                    // 儲存圖片
+                    images[index] = this;
+                    updateImageGrid();
+                    updateUI();
+                };
+                
+                img.src = e.target.result;
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        function updateImageGrid() {
+            // 更新所有圖片容器
+            const containers = imageGrid.querySelectorAll('.image-container');
+            
+            containers.forEach((container, index) => {
+                container.innerHTML = '';
+                
+                if (images[index]) {
+                    // 有圖片
+                    const img = document.createElement('img');
+                    img.src = images[index].src;
+                    
+                    const label = document.createElement('div');
+                    label.className = 'image-label';
+                    label.textContent = `圖片 ${index + 1}`;
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'remove-btn';
+                    removeBtn.textContent = 'X';
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        images[index] = null;
+                        updateImageGrid();
+                        updateUI();
+                    });
+                    
+                    container.appendChild(img);
+                    container.appendChild(label);
+                    container.appendChild(removeBtn);
+                } else {
+                    // 沒有圖片，顯示預留區
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'placeholder';
+                    placeholder.textContent = `圖片 ${index + 1}`;
+                    placeholder.dataset.index = index;
+                    placeholder.addEventListener('click', () => {
+                        fileInput.dataset.targetIndex = index;
+                        fileInput.click();
+                    });
+                    
+                    // 支援拖放
+                    placeholder.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        placeholder.style.backgroundColor = '#e0f0ff';
+                    });
+                    
+                    placeholder.addEventListener('dragleave', () => {
+                        placeholder.style.backgroundColor = '#f9f9f9';
+                    });
+                    
+                    placeholder.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        fileInput.dataset.targetIndex = index;
+                        if (e.dataTransfer.files.length > 0) {
+                            handleSingleFile(e.dataTransfer.files[0], index);
+                        }
+                        placeholder.style.backgroundColor = '#f9f9f9';
+                    });
+                    
+                    container.appendChild(placeholder);
+                }
+            });
+        }
+        
+        function updateUI() {
+            // 檢查是否已加滿10張圖片
+            const loadedImages = images.filter(img => img !== null);
+            const loadedCount = loadedImages.length;
+            
+            statusElement.textContent = `已選擇 ${loadedCount}/10 張圖片`;
+            
+            if (loadedCount === MAX_IMAGES) {
+                mergeButton.disabled = false;
+                statusElement.textContent = '已選擇10張圖片，可以合併了';
+            } else {
+                mergeButton.disabled = true;
+            }
+        }
+        
+        function mergeImages() {
+            const loadedImages = images.filter(img => img !== null);
+            
+            if (loadedImages.length !== MAX_IMAGES) {
+                alert(`請選擇剛好10張圖片（目前有${loadedCount}張）`);
+                return;
+            }
+            
+            // 獲取縮放比例
+            const scale = parseFloat(scaleSelect.value);
+            
+            // 先找出第一張圖片的尺寸作為標準
+            const firstImg = loadedImages[0];
+            // 計算縮放後的尺寸
+            const scaledWidth = Math.floor(firstImg.naturalWidth * scale);
+            const scaledHeight = Math.floor(firstImg.naturalHeight * scale);
+            
+            // 設定畫布尺寸 (5張寬 x 2列高)
+            resultCanvas.width = scaledWidth * 5;
+            resultCanvas.height = scaledHeight * 2;
+            
+            // 清除畫布
+            ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+            
+            // 繪製上方5張圖片（縮放）
+            for (let i = 0; i < 5; i++) {
+                if (images[i]) {
+                    ctx.drawImage(
+                        images[i], 
+                        0, 0, images[i].naturalWidth, images[i].naturalHeight, // 源圖像
+                        i * scaledWidth, 0, scaledWidth, scaledHeight // 目標位置與大小
+                    );
+                }
+            }
+            
+            // 繪製下方5張圖片（縮放）
+            for (let i = 5; i < 10; i++) {
+                if (images[i]) {
+                    ctx.drawImage(
+                        images[i], 
+                        0, 0, images[i].naturalWidth, images[i].naturalHeight, // 源圖像
+                        (i - 5) * scaledWidth, scaledHeight, scaledWidth, scaledHeight // 目標位置與大小
+                    );
+                }
+            }
+            
+            // 顯示下載按鈕
+            downloadContainer.style.display = 'block';
+        }
+        
+        function downloadImage() {
+            // 最高品質設定
+            const dataURL = resultCanvas.toDataURL('image/jpeg', 0.95);
+            
+            // 創建下載連結
+            const link = document.createElement('a');
+            const scale = scaleSelect.value;
+            link.download = `合併圖片_縮放${scale}.jpg`;
+            link.href = dataURL;
+            link.click();
+        }
+    </script>
+	<br>本工具由 <a href="https://claude.ai/"  target="_blank">claude.ai</a> 指導產生，使用提示詞如下:<br>
+	<pre>
+	想請您幫我寫一支 HTML 網頁，可以在本機執行以下功能:
+	1.先可以隨意選擇十個固定大小的圖檔。
+	2.設定圖片縮小比例，分別可選擇 0.1、0.2、0.25、0.3、0.4、0.5、0.6、0.7、0.75、0.8、0.9
+	3.請幫我將原始圖片依比例縮小後，合併此十個圖檔成為一大張圖片，上面是 1~5圖，下面是6~10 圖。
+	</pre>
+	回 <a href="index.html">阿德自用工具</a>
+</body>
+</html>
