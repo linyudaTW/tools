@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生圖提示詞建議</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .phrase-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .phrase-btn {
+            background-color: #e7f3ff;
+            border: 1px solid #a0c8e7;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .phrase-btn:hover {
+            background-color: #c4e0fa;
+        }
+        
+        #submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #submit-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .response-container {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .response-box {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 100px;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+        
+        #copy-btn {
+            background-color: #2196F3;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        #copy-btn:hover {
+            background-color: #0b7dda;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>生圖提示詞建議</h1>
+    
+    <div>
+        <label for="docText">請輸入您想要呈現的場景：</label>
+        <textarea id="docText" placeholder="請在此輸入文字..."></textarea>
+    </div>
+    
+    <div class="phrase-container">
+	    人: 
+        <button class="phrase-btn" onclick="addPhrase('二十歲亞洲女生')">二十歲亞洲女生</button>
+		<br>
+        
+		事(職業):
+		<button class="phrase-btn" onclick="addPhrase('時裝模特兒')">時裝模特兒</button>
+		<br>
+		
+		時:
+        <button class="phrase-btn" onclick="addPhrase('傍晚')">傍晚</button>
+		<br>
+		
+		地:
+        <button class="phrase-btn" onclick="addPhrase('海邊')">海邊</button>
+		<br>
+        
+		物:
+		<button class="phrase-btn" onclick="addPhrase('漁夫帽')">漁夫帽</button>
+		<br>
+		
+		氛圍(畫風):
+        <button class="phrase-btn" onclick="addPhrase('水彩畫畫風')">水彩畫畫風</button>
+        <br>
+    </div>
+    
+    <button id="submit-btn" onclick="submitData()">送出</button>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>處理中，請稍候...</p>
+    </div>
+    
+    <div class="response-container" id="response-container">
+        <h2>回應結果：</h2>
+        <div class="response-box" id="response-result"></div>
+        <button id="copy-btn" onclick="copyResponse()">複製</button>
+    </div>
+    
+    <script>
+        function addPhrase(phrase) {
+            const textarea = document.getElementById('docText');
+            const currentText = textarea.value.trim();
+            
+            if (currentText === '') {
+                textarea.value = phrase;
+            } else {
+                textarea.value = currentText + ', ' + phrase;
+            }
+            
+            // 將光標移至文本框末尾
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+        }
+        
+        function submitData() {
+            const textContent = document.getElementById('docText').value.trim();
+            
+            if (!textContent) {
+                alert('請輸入文字後再送出！');
+                return;
+            }
+            
+            // 顯示載入中
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('response-container').style.display = 'none';
+            
+            fetch('https://hook.us2.make.com/1uavo88iwfac86gbg57mfdhatd51tpeu', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: textContent })
+            })
+            .then(response => response.text())
+            .then(data => {
+                // 隱藏載入中，顯示結果
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('response-container').style.display = 'block';
+                document.getElementById('response-result').textContent = data;
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('response-container').style.display = 'block';
+                document.getElementById('response-result').textContent = '發生錯誤：' + error.message;
+            });
+        }
+        
+        function copyResponse() {
+            const responseText = document.getElementById('response-result').textContent;
+            
+            // 使用 Navigator Clipboard API
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(responseText)
+                    .then(() => {
+                        const copyBtn = document.getElementById('copy-btn');
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = '複製成功！';
+                        setTimeout(() => {
+                            copyBtn.textContent = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('無法複製：', err);
+                        fallbackCopyMethod(responseText);
+                    });
+            } else {
+                fallbackCopyMethod(responseText);
+            }
+        }
+        
+        // 備用複製方法（針對不支援 Navigator Clipboard API 的瀏覽器）
+        function fallbackCopyMethod(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                const copyBtn = document.getElementById('copy-btn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = successful ? '複製成功！' : '複製失敗';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('無法複製：', err);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+    </script>
+</body>
+</html>
