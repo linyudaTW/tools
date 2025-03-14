@@ -47,6 +47,18 @@
             background-color: #c4e0fa;
         }
         
+        .password-container {
+            margin-bottom: 20px;
+        }
+        
+        .password-input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 250px;
+        }
+        
         #submit-btn {
             background-color: #4CAF50;
             color: white;
@@ -146,6 +158,11 @@
         <br>
     </div>
     
+    <div class="password-container">
+        <label for="passwordInput">請輸入密碼：</label>
+        <input type="password" id="passwordInput" class="password-input" placeholder="請輸入密碼">
+    </div>
+    
     <button id="submit-btn" onclick="submitData()">送出</button>
     
     <div class="loading" id="loading">
@@ -177,9 +194,15 @@
         
         function submitData() {
             const textContent = document.getElementById('docText').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
             
             if (!textContent) {
                 alert('請輸入文字後再送出！');
+                return;
+            }
+            
+            if (!password) {
+                alert('請輸入密碼後再送出！');
                 return;
             }
             
@@ -192,7 +215,10 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ content: textContent })
+                body: JSON.stringify({ 
+                    content: textContent,
+                    password: password
+                })
             })
             .then(response => response.text())
             .then(data => {
