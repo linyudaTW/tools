@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>多字体展示</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+    
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 20px;
+    }
+    
+    .canvas-container {
+      width: 45%;
+      margin-bottom: 30px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+      background-color: white;
+      padding: 10px;
+    }
+    
+    canvas {
+      width: 100%;
+      height: auto;
+      cursor: pointer;
+    }
+    
+    .font-name {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 16px;
+      color: #333;
+    }
+    
+    .instructions {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #e9f7fe;
+      border-left: 5px solid #39a0ed;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <h1>字體展示畫廊</h1>
+  
+  <div class="instructions">
+    <p>點擊任一圖片可以下載。您可以修改下方腳本中的 <code>textToDisplay</code> 變數來變更所有圖片顯示的文字。</p>
+    <p>每張圖片使用不同的字體，您可以在腳本中的 <code>fontFamilies</code> 陣列中修改字體名稱。</p>
+  </div>
+  
+  <div class="gallery" id="gallery"></div>
+
+  <script>
+    // 【修改这里】显示的文字 - 可以随时更改
+    const textToDisplay = "自在";
+    
+    // 【修改这里】字体列表 - 可以替换为您想要的字体
+    const fontFamilies = [
+      { name: "華康行楷體W5", css: "'華康行楷體W5', '華康行楷體W5'" },
+	  { name: "華康古印體", css: "'華康古印體', '華康古印體'" },
+      { name: "華康隸書體W7", css: "'華康隸書體W7', '華康隸書體W7'" },
+      { name: "華康POP1體W5", css: "'華康POP1體W5', '華康POP1體W5'" },
+      { name: "華康少女文字W5", css: "'華康少女文字W5', '華康少女文字W5'" },
+      { name: "華康硬黑體W7", css: "'華康硬黑體W7', '華康硬黑體W7'" },
+      { name: "華康童童體", css: "'華康童童體', '華康童童體'" },
+      { name: "華康墨字體", css: "'華康墨字體', '華康墨字體'" },
+	  { name: "華康瘦金體", css: "'華康瘦金體', '華康瘦金體'" },
+      { name: "微軟正黑體", css: "'Microsoft JhengHei'" },
+      { name: "新細明體", css: "'PMingLiU'" },
+      { name: "細明體", css: "'MingLiU'" }
+    ];
+    
+    // 图片尺寸
+    const imageWidth = 1920;
+    const imageHeight = 1080;
+    
+    // 字体大小和颜色
+    const fontSize = 900;
+    const textColor = "rgb(0, 0, 0)";
+    const backgroundColor = "rgb(255, 255, 255)";
+    
+    // 创建画布函数
+    function createCanvasElement(fontFamily, fontName, index) {
+      const container = document.createElement("div");
+      container.className = "canvas-container";
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = imageWidth;
+      canvas.height = imageHeight;
+      canvas.id = `canvas-${index}`;
+      
+      const ctx = canvas.getContext("2d");
+      
+      // 设置背景色
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 设置文字属性
+      ctx.fillStyle = textColor;
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      // 绘制文字
+      ctx.fillText(textToDisplay, canvas.width / 2, canvas.height / 2);
+      
+      // 为画布添加点击事件以下载图片
+      canvas.addEventListener("click", function() {
+        const link = document.createElement("a");
+        link.download = `${textToDisplay}-${fontName}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      });
+      
+      const fontLabel = document.createElement("div");
+      fontLabel.className = "font-name";
+      fontLabel.textContent = fontName;
+      
+      container.appendChild(canvas);
+      container.appendChild(fontLabel);
+      
+      return container;
+    }
+    
+    // 生成所有画布
+    window.onload = function() {
+      const gallery = document.getElementById("gallery");
+      
+      fontFamilies.forEach((font, index) => {
+        const canvasElement = createCanvasElement(font.css, font.name, index);
+        gallery.appendChild(canvasElement);
+      });
+    };
+  </script>
+</body>
+</html>
