@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表單提交頁面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>資料提交表單</h1>
+    
+    <form id="dataForm">
+        <div class="form-group">
+            <label for="NoUse">編號:</label>
+            <input type="text" id="NoUse" name="NoUse">
+        </div>
+        
+        <div class="form-group">
+            <label for="Title">標題:</label>
+            <input type="text" id="Title" name="Title">
+        </div>
+        
+        <div class="form-group">
+            <label for="WorkMode">選擇模式:</label>
+            <select id="WorkMode" name="WorkMode">
+                <option value="1">1.與神對話</option>
+                <option value="2">2.愛的地圖</option>
+                <option value="3">3.AI主編聊聊</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">密碼:</label>
+            <input type="password" id="password" name="password">
+        </div>
+        
+        <button type="submit">送出</button>
+    </form>
+    
+    <div id="response">
+        <h3>回應結果:</h3>
+        <pre id="responseContent"></pre>
+    </div>
+
+    <script>
+        document.getElementById('dataForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 獲取表單數據
+            const formData = new FormData(this);
+            
+            // 顯示載入中訊息
+            document.getElementById('response').style.display = 'block';
+            document.getElementById('responseContent').textContent = '資料傳送中...';
+            
+            // 發送POST請求
+            fetch('https://hook.us2.make.com/bkz2rmpb5acebrvvpgjlylqu9gyd9h7b', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                // 顯示回應結果
+                document.getElementById('responseContent').textContent = data;
+            })
+            .catch(error => {
+                document.getElementById('responseContent').textContent = '錯誤: ' + error.message;
+            });
+        });
+    </script>
+</body>
+</html>
