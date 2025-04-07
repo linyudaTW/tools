@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LoveMap 圖文合成工具</title>
+    <style>
+        body { font-family: '華康儷中黑', sans-serif; }
+        canvas { border: 1px solid #ccc; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <form id="myForm">
+        <label>編號文字：</label>
+        <input type="text" id="NoUse" name="NoUse" required>
+        <br><br>
+        <label>標題文字：</label>
+        <input type="text" id="Title" name="Title" required>
+        <br><br>
+        <button type="button" onclick="generateImage()">立即合成</button>
+    </form>
+    
+    <canvas id="outputCanvas" width="1920" height="1080"></canvas>
+
+    <script>
+        function generateImage() {
+            const canvas = document.getElementById('outputCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 載入背景圖
+            const bgImage = new Image();
+            bgImage.src = 'LoveMapBK.jpg';
+            
+            bgImage.onload = function() {
+                // 繪製背景圖
+                ctx.drawImage(bgImage, 0, 0);
+                
+                // 文字繪製設定
+                ctx.font = "96px '華康儷中黑'";
+                ctx.fillStyle = "#000000";
+                ctx.textBaseline = "top";
+                
+                // 繪製固定文字
+                ctx.fillText("愛的地圖", 50, 50);
+                
+                // 繪製使用者輸入文字
+                ctx.fillText(document.getElementById('NoUse').value, 450, 50);
+                ctx.fillText(document.getElementById('Title').value, 50, 180);
+                
+                // 轉換為JPEG並顯示
+                const dataURL = canvas.toDataURL('image/jpeg');
+                const img = new Image();
+                img.src = dataURL;
+                document.body.appendChild(img);
+            };
+        }
+    </script>
+</body>
+</html>
