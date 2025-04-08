@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文字合成到圖片</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            align-self: flex-start;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #outputImage {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            display: none;
+        }
+        .note {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #17a2b8;
+        }
+        #imageUpload {
+            margin-top: 10px;
+        }
+        .loading {
+            display: none;
+            margin: 10px 0;
+            color: #666;
+        }
+        .error {
+            color: #d9534f;
+            margin-top: 10px;
+            display: none;
+        }
+        .download-btn {
+            margin-top: 15px;
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: none;
+        }
+        .download-btn:hover {
+            background-color: #0069d9;
+        }
+        .format-select {
+            margin-top: 10px;
+            padding: 5px;
+        }
+        .font-info {
+            margin-top: 10px;
+            color: #666;
+            font-style: italic;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>文字合成到圖片工具</h1>
+        
+        <div>
+            <label for="Words">請輸入要合成到圖片的文字：</label>
+            <textarea id="Words" placeholder="請在此輸入多行文字..."></textarea>
+        </div>
+        
+        <div>
+            <label for="imageUpload">選擇背景圖片 (如果無法自動加載)：</label>
+            <input type="file" id="imageUpload" accept="image/*">
+        </div>
+        
+        <div>
+            <label for="formatSelect">選擇圖片格式：</label>
+            <select id="formatSelect" class="format-select">
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg">JPG</option>
+            </select>
+        </div>
+        
+        <button id="submitBtn">送出</button>
+        
+        <div class="loading" id="loadingIndicator">處理中，請稍候...</div>
+        <div class="error" id="errorMessage"></div>
+        <div class="font-info" id="fontInfo"></div>
+        
+        <div class="result">
+            <img id="outputImage" alt="合成後的圖片">
+            <br>
+            <button id="downloadBtn" class="download-btn">下載圖片</button>
+        </div>
+        
+        <div class="note">
+            <p><strong>使用說明：</strong></p>
+            <ol>
+                <li>在文字框中輸入您想要顯示的文字</li>
+                <li>系統將嘗試自動使用同目錄下的 GodSayGold.jpg 作為背景</li>
+                <li>如果背景無法自動加載，請使用「選擇背景圖片」功能手動上傳</li>
+                <li>選擇您想要的圖片格式（PNG 或 JPG）</li>
+                <li>點擊「送出」生成合成圖片，系統會自動計算最佳字體大小</li>
+                <li>點擊「下載圖片」按鈕來下載生成的圖片</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMsg = document.getElementById('errorMessage');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const imageUpload = document.getElementById('imageUpload');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const formatSelect = document.getElementById('formatSelect');
+            const fontInfo = document.getElementById('fontInfo');
+            let outputCanvas = null;
+            let uploadedImage = null;
+            
+            // 檢查是否有通過選擇器上傳的圖片
+            imageUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        uploadedImage = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 下載按鈕事件處理
+            downloadBtn.addEventListener('click', function() {
+                if (!outputCanvas) return;
+                
+                const format = formatSelect.value;
+                const extension = format === 'image/png' ? 'png' : 'jpg';
+                
+                // 使用所選格式創建數據URL
+                const dataURL = outputCanvas.toDataURL(format, 1.0);
+                
+                // 創建臨時鏈接並觸發下載
+                const link = document.createElement('a');
+                link.download = `合成圖片.${extension}`;
+                link.href = dataURL;
+                link.click();
+            });
+            
+            submitBtn.addEventListener('click', function() {
+                // 重置顯示狀態
+                errorMsg.style.display = 'none';
+                fontInfo.style.display = 'none';
+                loadingIndicator.style.display = 'block';
+                downloadBtn.style.display = 'none';
+                
+                // 獲取用戶輸入的文字
+                const inputText = document.getElementById('Words').value;
+                
+                if (!inputText.trim()) {
+                    errorMsg.textContent = '請輸入文字！';
+                    errorMsg.style.display = 'block';
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                // 創建一個臨時的圖片對象來加載背景圖
+                const backgroundImg = new Image();
+                
+                // 嘗試使用上傳的圖片或默認圖片
+                if (uploadedImage) {
+                    processWithImage(backgroundImg, uploadedImage);
+                } else {
+                    // 嘗試使用位於同一目錄下的圖片
+                    fetch('GodSayGold.jpg')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('無法找到背景圖片');
+                            }
+                            return response.blob();
+                        })
+                        .then(blob => {
+                            const url = URL.createObjectURL(blob);
+                            processWithImage(backgroundImg, url);
+                        })
+                        .catch(error => {
+                            // 使用預設佔位圖片（1080x1920的純白背景）
+                            createPlaceholderImage();
+                            errorMsg.textContent = '無法載入背景圖片，請使用上方的選擇功能手動上傳背景圖片。';
+                            errorMsg.style.display = 'block';
+                            loadingIndicator.style.display = 'none';
+                        });
+                }
+            });
+            
+            function processWithImage(backgroundImg, src) {
+                backgroundImg.onload = function() {
+                    // 創建畫布
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 設置畫布大小
+                    canvas.width = backgroundImg.width || 1080;
+                    canvas.height = backgroundImg.height || 1920;
+                    
+                    // 繪製背景圖片
+                    ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+                    
+                    // 獲取用戶輸入的文字
+                    const inputText = document.getElementById('Words').value;
+                    
+                    // 設置文字區域大小限制
+                    const maxWidth = 850;
+                    const maxHeight = 1680;
+                    
+                    // 計算字體大小和行高
+                    const optimalFontSize = calculateOptimalFontSize(ctx, inputText, maxWidth, maxHeight);
+                    const fontSize = optimalFontSize.fontSize;
+                    const lineHeight = fontSize * 1.25; // 行高為字體大小的1.25倍
+                    
+                    // 更新字體信息顯示
+                    fontInfo.textContent = `系統自動計算的最佳字體大小: ${fontSize}px`;
+                    fontInfo.style.display = 'block';
+                    
+                    // 設置文字樣式
+                    const fontFamily = '"華康儷中黑", "Microsoft JhengHei", "微軟正黑體", sans-serif';
+                    ctx.font = `${fontSize}px ${fontFamily}`;
+                    ctx.fillStyle = 'black';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    
+                    // 使用分割好的行
+                    const lines = optimalFontSize.lines;
+                    
+                    // 計算總高度，以便垂直置中
+                    const totalHeight = lines.length * lineHeight;
+                    let startY = centerY - (totalHeight / 2) + (lineHeight / 2);
+                    
+                    // 繪製每一行文字
+                    lines.forEach(function(line, i) {
+                        ctx.fillText(line, centerX, startY + (i * lineHeight));
+                    });
+                    
+                    // 保存畫布引用以供下載使用
+                    outputCanvas = canvas;
+                    
+                    // 將畫布轉換為圖片並顯示
+                    const outputImage = document.getElementById('outputImage');
+                    const format = formatSelect.value;
+                    outputImage.src = canvas.toDataURL(format);
+                    outputImage.style.display = 'block';
+                    
+                    // 顯示下載按鈕
+                    downloadBtn.style.display = 'inline-block';
+                    loadingIndicator.style.display = 'none';
+                };
+                
+                backgroundImg.onerror = function() {
+                    errorMsg.textContent = '圖片載入失敗，請檢查圖片格式或使用上方的選擇功能手動上傳背景圖片。';
+                    errorMsg.style.display = 'block';
+                    loadingIndicator.style.display = 'none';
+                };
+                
+                backgroundImg.src = src;
+            }
+            
+            function calculateOptimalFontSize(ctx, text, maxWidth, maxHeight) {
+                // 分割段落
+                const paragraphs = text.split('\n');
+                
+                // 初始字體大小範圍
+                let minFontSize = 20;  // 最小可接受的字體大小
+                let maxFontSize = 200; // 最大起始字體大小
+                let bestFontSize = minFontSize;
+                let bestLines = [];
+                
+                // 二分搜索找最佳字體大小
+                while (minFontSize <= maxFontSize) {
+                    const currentSize = Math.floor((minFontSize + maxFontSize) / 2);
+                    
+                    // 測試當前字體大小
+                    const fontFamily = '"華康儷中黑", "Microsoft JhengHei", "微軟正黑體", sans-serif';
+                    ctx.font = `${currentSize}px ${fontFamily}`;
+                    
+                    // 計算行高
+                    const lineHeight = currentSize * 1.25;
+                    
+                    // 分行處理
+                    let allLines = [];
+                    paragraphs.forEach((paragraph, index) => {
+                        if (paragraph.trim() === '' && index < paragraphs.length - 1) {
+                            allLines.push('');
+                            return;
+                        }
+                        
+                        const words = paragraph.split('');
+                        let currentLine = '';
+                        
+                        for (let i = 0; i < words.length; i++) {
+                            const char = words[i];
+                            const testLine = currentLine + char;
+                            const metrics = ctx.measureText(testLine);
+                            const testWidth = metrics.width;
+                            
+                            if (testWidth > maxWidth && currentLine !== '') {
+                                allLines.push(currentLine);
+                                currentLine = char;
+                            } else {
+                                currentLine = testLine;
+                            }
+                        }
+                        
+                        if (currentLine) {
+                            allLines.push(currentLine);
+                        }
+                        
+                        // 每個段落結束後添加一個空行，除非是最後一個段落
+                        if (index < paragraphs.length - 1) {
+                            allLines.push('');
+                        }
+                    });
+                    
+                    // 檢查是否適合高度限制
+                    const totalHeight = allLines.length * lineHeight;
+                    
+                    if (totalHeight <= maxHeight) {
+                        // 如果適合，嘗試更大的字體
+                        bestFontSize = currentSize;
+                        bestLines = allLines;
+                        minFontSize = currentSize + 1;
+                    } else {
+                        // 如果不適合，嘗試更小的字體
+                        maxFontSize = currentSize - 1;
+                    }
+                }
+                
+                // 如果沒有找到適合的大小，使用最小字體並重新計算行
+                if (bestLines.length === 0) {
+                    ctx.font = `${bestFontSize}px "華康儷中黑", "Microsoft JhengHei", "微軟正黑體", sans-serif`;
+                    bestLines = [];
+                    
+                    paragraphs.forEach((paragraph, index) => {
+                        if (paragraph.trim() === '') {
+                            bestLines.push('');
+                            return;
+                        }
+                        
+                        const words = paragraph.split('');
+                        let currentLine = '';
+                        
+                        for (let i = 0; i < words.length; i++) {
+                            const char = words[i];
+                            const testLine = currentLine + char;
+                            const metrics = ctx.measureText(testLine);
+                            const testWidth = metrics.width;
+                            
+                            if (testWidth > maxWidth && currentLine !== '') {
+                                bestLines.push(currentLine);
+                                currentLine = char;
+                            } else {
+                                currentLine = testLine;
+                            }
+                        }
+                        
+                        if (currentLine) {
+                            bestLines.push(currentLine);
+                        }
+                        
+                        if (index < paragraphs.length - 1) {
+                            bestLines.push('');
+                        }
+                    });
+                }
+                
+                // 移除最後一行如果是空行
+                if (bestLines.length > 0 && bestLines[bestLines.length - 1] === '') {
+                    bestLines.pop();
+                }
+                
+                return {
+                    fontSize: bestFontSize,
+                    lines: bestLines
+                };
+            }
+            
+            function createPlaceholderImage() {
+                // 創建臨時畫布作為佔位圖片
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // 設置為1080x1920
+                canvas.width = 1080;
+                canvas.height = 1920;
+                
+                // 填充淺色背景
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 添加提示文字
+                ctx.font = '24px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('請上傳背景圖片 GodSayGold.jpg', canvas.width/2, canvas.height/2);
+                
+                // 將畫布轉換為圖片並顯示
+                const outputImage = document.getElementById('outputImage');
+                outputImage.src = canvas.toDataURL('image/png');
+                outputImage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
