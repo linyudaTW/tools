@@ -239,8 +239,8 @@
                     const inputText = document.getElementById('Words').value;
                     
                     // 設置文字區域大小限制
-                    const maxWidth = 850;
-                    const maxHeight = 1680;
+                    const maxWidth = 966;
+                    const maxHeight = 1480;
                     
                     // 計算字體大小和行高
                     const optimalFontSize = calculateOptimalFontSize(ctx, inputText, maxWidth, maxHeight);
@@ -255,12 +255,17 @@
                     const fontFamily = '"華康儷中黑", "Microsoft JhengHei", "微軟正黑體", sans-serif';
                     ctx.font = `${fontSize}px ${fontFamily}`;
                     ctx.fillStyle = 'black';
-                    ctx.textAlign = 'center';
+                    //20250413 Fix 
+					//ctx.textAlign = 'center';
+					ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
                     
-                    const centerX = canvas.width / 2;
-                    const centerY = canvas.height / 2;
-                    
+                    //20250413 fix 修改過圖案
+					//const centerX = canvas.width / 2;
+                    //const centerY = canvas.height / 2;
+                    const centerX = 52;
+					const centerY = 804;
+					
                     // 使用分割好的行
                     const lines = optimalFontSize.lines;
                     
