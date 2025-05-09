@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini 提示詞產生器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: auto;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        #docText {
+            width: 95%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .common-phrases button {
+            background-color: #e7e7e7;
+            border: 1px solid #ccc;
+            color: #333;
+            padding: 8px 12px;
+            margin: 5px 5px 10px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .common-phrases button:hover {
+            background-color: #d4d4d4;
+        }
+        #submitBtn, .copy-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        #submitBtn:hover, .copy-btn:hover {
+            background-color: #0056b3;
+        }
+        #submitBtn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result-item {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .result-item p {
+            margin: 8px 0;
+        }
+        .en-prompt-text {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #eee;
+            padding: 5px;
+            display: block;
+            border-radius: 3px;
+            margin-top: 5px;
+            white-space: pre-wrap; /* Preserve line breaks */
+            word-break: break-all; /* Break long words */
+        }
+        #apiKeyInput {
+            width: 95%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .loading-indicator {
+            display: none; /* Hidden by default */
+            margin-top: 15px;
+            font-style: italic;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Gemini 視覺設計提示詞產生器</h1>
+
+        <label for="apiKeyInput">Gemini API 金鑰:</label>
+        <input type="password" id="apiKeyInput" placeholder="請在此輸入您的 Gemini API 金鑰" value="">
+
+        <label for="docText">輸入您的設計概念 (docText):</label>
+        <textarea id="docText" name="docText" rows="5" placeholder="例如：一位年輕的藝術家在充滿陽光的畫室裡創作..."></textarea>
+
+        <div class="common-phrases">
+            常用詞句:
+            <button type="button">二十歲亞洲女生</button>
+            <button type="button">時裝模特兒</button>
+            <button type="button">傍晚</button>
+            <button type="button">海邊</button>
+            <button type="button">漁夫帽</button>
+            <button type="button">水彩畫畫風</button>
+            <button type="button">科幻</button>
+            <button type="button">賽博龐克</button>
+            <button type="button">電影感光線</button>
+            <button type="button">廣角鏡頭</button>
+            <button type="button">細節豐富</button>
+            <button type="button">高品質</button>
+            <!-- 您可以在此處添加更多常用詞句按鈕 -->
+        </div>
+
+        <button id="submitBtn" type="button">送出請求</button>
+        <div id="loadingIndicator" class="loading-indicator">正在處理請求，請稍候...</div>
+
+        <div id="resultsArea">
+            <!-- Gemini API 的回應將顯示在此 -->
+        </div>
+    </div>
+
+    <script>
+        const docTextElement = document.getElementById('docText');
+        const commonPhrasesContainer = document.querySelector('.common-phrases');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultsArea = document.getElementById('resultsArea');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        // 常用詞句點擊事件
+        commonPhrasesContainer.addEventListener('click', function(event) {
+            if (event.target.tagName === 'BUTTON') {
+                const phrase = event.target.textContent;
+                if (docTextElement.value.trim() === '') {
+                    docTextElement.value += phrase;
+                } else {
+                    docTextElement.value += `, ${phrase}`;
+                }
+                docTextElement.focus(); // 讓游標回到輸入框
+            }
+        });
+
+        // 送出按鈕點擊事件
+        submitBtn.addEventListener('click', async function() {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                alert('請先輸入您的 Gemini API 金鑰！');
+                apiKeyInput.focus();
+                return;
+            }
+
+            const userContent = docTextElement.value.trim();
+            if (!userContent) {
+                alert('請輸入您的設計概念！');
+                docTextElement.focus();
+                return;
+            }
+
+            const fullPrompt = `您是一位專業且富有創意的視覺設計大師。請理解我所提供的內容:
+'${userContent}'
+根據您的理解，提供三個生成圖像的英文提示，為每個英文提示提供繁體中文解釋，
+
+提示產生時：
+* 確保每個英文提示準確反映使用者文字的內容。 
+* 製作詳細、令人回味且適合產生影像的提示。 
+* 力求三個提示的風格和重點多樣化。 
+
+2. 翻譯：
+* 為每個英文提示提供清晰、準確的繁體中文翻譯。
+* 確保翻譯準確傳達英語提示的細微差別。
+
+依照下列格式化輸出。
+{
+    "En1":"第一則生圖用的英文提示詞內容。",
+    "Tw1":"第一則生圖用英文提示詞內容的中文翻譯。",
+    "En2":"第二則生圖用的英文提示詞內容。",
+    "Tw2":"第二則生圖用英文提示詞內容的中文翻譯。",
+    "En3":"第三則生圖用的英文提示詞內容。",
+    "Tw3":"第三則生圖用英文提示詞內容的中文翻譯。"
+}`;
+
+            resultsArea.innerHTML = ''; // 清空先前結果
+            loadingIndicator.style.display = 'block'; // 顯示載入指示
+            submitBtn.disabled = true; // 禁用按鈕
+
+            try {
+                // Gemini API 的模型名稱和版本，此處使用 gemini-1.5-flash-latest
+                const model = 'gemini-2.0-flash';
+                const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+                const requestBody = {
+                    contents: [{
+                        parts: [{
+                            text: fullPrompt
+                        }]
+                    }],
+                    // 選用：可以加入 generationConfig 控制生成行為
+                    // generationConfig: {
+                    //   temperature: 0.7,
+                    //   topK: 1,
+                    //   topP: 1,
+                    //   maxOutputTokens: 2048,
+                    // }
+                };
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('API Error:', errorData);
+                    throw new Error(`API 請求失敗: ${response.status} ${response.statusText}. ${errorData.error?.message || ''}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
+                    let geminiResponseText = data.candidates[0].content.parts[0].text;
+                    
+                    // 嘗試移除可能的 Markdown JSON 區塊標記
+                    geminiResponseText = geminiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+
+                    try {
+                        const parsedJson = JSON.parse(geminiResponseText);
+                        displayResults(parsedJson);
+                    } catch (e) {
+                        console.error("解析 JSON 失敗:", e);
+                        console.error("原始回應文字:", geminiResponseText);
+                        resultsArea.innerHTML = `<p style="color: red;">解析 Gemini 回應的 JSON 內容時發生錯誤。請檢查控制台以獲取詳細資訊。原始回應內容：<pre>${escapeHtml(geminiResponseText)}</pre></p>`;
+                    }
+                } else {
+                    console.error('無效的 API 回應結構:', data);
+                    resultsArea.innerHTML = '<p style="color: red;">從 Gemini API 收到的回應格式不正確。</p>';
+                }
+
+            } catch (error) {
+                console.error('請求 Gemini API 時發生錯誤:', error);
+                resultsArea.innerHTML = `<p style="color: red;">請求 Gemini API 時發生錯誤: ${error.message}</p>`;
+            } finally {
+                loadingIndicator.style.display = 'none'; // 隱藏載入指示
+                submitBtn.disabled = false; // 重新啟用按鈕
+            }
+        });
+
+        function displayResults(jsonData) {
+            resultsArea.innerHTML = ''; // 清空
+
+            for (let i = 1; i <= 3; i++) {
+                const enKey = `En${i}`;
+                const twKey = `Tw${i}`;
+
+                if (jsonData[enKey] && jsonData[twKey]) {
+                    const resultItem = document.createElement('div');
+                    resultItem.classList.add('result-item');
+
+                    const enText = jsonData[enKey];
+                    const twText = jsonData[twKey];
+
+                    const copyButton = document.createElement('button');
+                    copyButton.classList.add('copy-btn');
+                    copyButton.textContent = `複製英文提示詞 ${i}`;
+                    copyButton.addEventListener('click', () => copyToClipboard(enText, copyButton));
+
+                    const enPromptDisplay = document.createElement('span');
+                    enPromptDisplay.classList.add('en-prompt-text');
+                    enPromptDisplay.textContent = enText;
+                    
+                    const twTranslation = document.createElement('p');
+                    twTranslation.innerHTML = `<strong>繁體中文翻譯 ${i}:</strong> ${escapeHtml(twText)}`;
+
+                    resultItem.appendChild(copyButton);
+                    resultItem.appendChild(enPromptDisplay);
+                    resultItem.appendChild(twTranslation);
+                    resultsArea.appendChild(resultItem);
+                }
+            }
+        }
+
+        function copyToClipboard(text, buttonElement) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = '已複製!';
+                buttonElement.disabled = true;
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                    buttonElement.disabled = false;
+                }, 2000);
+            }).catch(err => {
+                console.error('無法複製文字: ', err);
+                alert('複製失敗，您的瀏覽器可能不支援或未授予權限。');
+            });
+        }
+
+        // Helper function to escape HTML special characters
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+    </script>
+</body>
+</html>
